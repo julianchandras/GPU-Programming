@@ -17,7 +17,16 @@
 __global__ void matmul_basic_kernel(float *A, float *B, float *C,
                                      int M, int K, int N) {
     // YOUR CODE HERE
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
 
+    if (row < M && col < N) {
+        float sum = 0.0f;
+        for (int k = 0; k < K; k++) {
+            sum += A[row * K + k] * B[k * N + col];
+        }
+        C[row * N + col] = sum;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -51,12 +60,21 @@ int main(int argc, char *argv[]) {
     // ============================================================
     float *d_A, *d_B, *d_C;
     // YOUR CODE HERE
+    size_t size_A = M * K * sizeof(float);
+    size_t size_B = K * N * sizeof(float);
+    size_t size_C = M * N * sizeof(float);
+
+    CUDA_CHECK(cudaMalloc(&d_A, size_A));
+    CUDA_CHECK(cudaMalloc(&d_B, size_B));
+    CUDA_CHECK(cudaMalloc(&d_C, size_C));
 
     // ============================================================
     // TODO 3: Copy A and B from host to device
     // Use: CUDA_CHECK(cudaMemcpy(..., cudaMemcpyHostToDevice))
     // ============================================================
     // YOUR CODE HERE
+    CUDA_CHECK(cudaMemcpy(d_A, A.data, size_A, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_B, B.data, size_B, cudaMemcpyHostToDevice));
 
     // ============================================================
     // TODO 4: Set up grid and block dimensions
@@ -66,6 +84,9 @@ int main(int argc, char *argv[]) {
     // dim3 blockDim(...);
     // dim3 gridDim(...);
     // YOUR CODE HERE
+    dim3 blockDim(16, 16);
+    dim3 gridDim((N + blockDim.x - 1) / blockDim.x,
+                 (M + blockDim.y - 1) / blockDim.y);
 
     // ============================================================
     // TODO 5: Launch the kernel and measure time
@@ -75,6 +96,7 @@ int main(int argc, char *argv[]) {
     gpu_timer_start(&timer);
 
     // YOUR CODE HERE - launch kernel
+    matmul_basic_kernel<<<gridDim, blockDim>>>(d_A, d_B, d_C, M, K, N);
 
     float gpu_time = gpu_timer_stop(&timer);
     CUDA_CHECK(cudaGetLastError());
@@ -87,6 +109,7 @@ int main(int argc, char *argv[]) {
     // Use: CUDA_CHECK(cudaMemcpy(C.data, d_C, ..., cudaMemcpyDeviceToHost))
     // ============================================================
     // YOUR CODE HERE
+    CUDA_CHECK(cudaMemcpy(C.data, d_C, size_C, cudaMemcpyDeviceToHost));
 
     // Verify result
     if (argc >= 4) {
@@ -97,9 +120,9 @@ int main(int argc, char *argv[]) {
     } else {
         // Compare with CPU result
         printf("Computing CPU reference...\n");
-        double cpu_start = cpu_timer_start();
+        struct timespec cpu_start = cpu_timer_start();
         Matrix C_cpu = matrix_multiply_cpu(&A, &B);
-        double cpu_time = cpu_timer_stop(cpu_start);
+        float cpu_time = cpu_timer_stop(cpu_start);
         printf("CPU Time: %.3f ms\n", cpu_time);
 
         int pass = matrix_compare(&C, &C_cpu, 1e-3);
@@ -117,6 +140,9 @@ int main(int argc, char *argv[]) {
     // Use: CUDA_CHECK(cudaFree(...))
     // ============================================================
     // YOUR CODE HERE
+    CUDA_CHECK(cudaFree(d_A));
+    CUDA_CHECK(cudaFree(d_B));
+    CUDA_CHECK(cudaFree(d_C));
 
     matrix_free(&A);
     matrix_free(&B);

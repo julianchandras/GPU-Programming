@@ -193,11 +193,11 @@ test: part1 part2
 	@echo ""
 
 	@echo "$(YELLOW)[TEST]$(NC) Part 1: Basic GPU implementation"
-	@./$(PART1_EXE) 128 128 128 2>&1 | head -20
+	@./$(PART1_EXE) datasets/small/mat_128x128_A.bin datasets/small/mat_128x128_B.bin datasets/small/mat_128x128_C.bin 2>&1 | head -20
 	@echo ""
 
 	@echo "$(YELLOW)[TEST]$(NC) Part 2: Tiled GPU implementation"
-	@./$(PART2_EXE) 128 128 128 2>&1 | head -20
+	@./$(PART2_EXE) datasets/small/mat_128x128_A.bin datasets/small/mat_128x128_B.bin datasets/small/mat_128x128_C.bin 2>&1 | head -20
 	@echo ""
 
 	@echo "$(GREEN)[OK]$(NC) Tests completed"
